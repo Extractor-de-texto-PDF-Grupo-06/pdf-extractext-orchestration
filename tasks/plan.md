@@ -42,6 +42,7 @@ T6 extractor con metadatos (PR a valendotjpg) ─────┤
 
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
+| Sin acceso de Claude a GitHub, cada cambio pasa por la máquina de cotthss | Alto: frena todo | Vincular GitHub en claude.ai el viernes |
 | El PR del extractor depende de que valendotjpg lo revise | Medio: bloquea los metadatos | Pedirle la revisión el sábado; web tolera `metadata` ausente |
 | Traefik rinde menos que el nginx afinado para PDFs grandes | Medio: criterio de rendimiento | T13 mide temprano; si no alcanza, ajustar o justificar con datos |
 | Docker en Windows convierte los finales de línea de los scripts | Bajo | `.gitattributes` con `eol=lf` en cada repositorio |
@@ -57,11 +58,12 @@ Tamaño: S (1–2 archivos) · M (3–5) · L (5 o más, dividido en commits roj
 
 Subir `SPEC.md`, `docs/GLOSSARY.md`, `docs/adr/`, `docs/workflow.md` y este plan.
 Configurar en los seis repositorios: rama `develop` por defecto, `main` y `develop`
-protegidas, CODEOWNERS con cotthss y plantilla de pull request.
+protegidas (solo por pull request y con la CI en verde, sin aprobación obligatoria) y
+plantilla de pull request.
 
 - [ ] Los documentos están en `develop` de orchestration.
 - [ ] Un push directo a `main` o `develop` es rechazado en cualquier repositorio.
-- [ ] Un pull request pide la aprobación de cotthss.
+- [ ] Un pull request con la CI en rojo no se puede fusionar.
 
 **Dependencias:** ninguna.
 
@@ -85,7 +87,7 @@ historial, antes de restaurar el monolito.
 **Dependencias:** T2.
 
 ### Checkpoint A
-- [ ] Seis repositorios con `develop`, CODEOWNERS y protección.
+- [ ] Seis repositorios con `develop` y protección de ramas.
 - [ ] El monolito archivado levanta; documents conserva su historial.
 
 ### Fase 1 — Servicios (viernes 20 y sábado 21)

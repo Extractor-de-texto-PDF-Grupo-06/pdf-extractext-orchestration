@@ -34,9 +34,15 @@ orden, y esa es la evidencia de TDD.
 ## Pull requests
 
 - Uno por issue, con `Closes #N` en la descripción para que el Project lo mueva solo.
-- Los tests de la CI tienen que pasar.
-- Lo aprueba cotthss (CODEOWNERS).
+- Para fusionar alcanza con que **la CI pase**. La revisión es opcional.
+- **Excepción:** un cambio de contrato entre servicios (una ruta, un campo o un código de
+  respuesta nuevo) lo mira otro integrante antes de fusionar, porque es lo que rompe a
+  otro servicio.
 - La descripción dice qué cambia, por qué y cómo se probó.
+
+Elegimos no exigir aprobación para esta entrega: con una sola persona aprobando, sus
+propios pull requests quedaban bloqueados (GitHub no permite aprobar uno propio) y se
+volvía un cuello de botella.
 
 ## Issues y Project
 

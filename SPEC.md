@@ -235,11 +235,11 @@ el código.
 
 ## Límites
 
-- **Siempre:** correr los tests antes de cada commit; abrir un pull request hacia `develop`
-  aprobado por cotthss (CODEOWNERS en todos los repositorios); un tema por pull request; leer la
+- **Siempre:** correr los tests antes de cada commit; entrar por pull request hacia `develop`
+  con la CI en verde; un tema por pull request; leer la
   configuración solo desde `Settings`; responder errores en el formato del contrato;
   conservar el historial al mover código entre repositorios.
-- **Preguntar antes:** cambiar un contrato HTTP; agregar una dependencia; transferir o
+- **Preguntar antes:** cambiar un contrato HTTP (lo revisa otro integrante antes de fusionar); agregar una dependencia; transferir o
   archivar un repositorio; tocar el repositorio del extractor (pertenece a valendotjpg);
   cualquier cambio en `main` de un repositorio ajeno.
 - **Nunca:** escribir el PDF a disco; guardar secretos en Consul o en Git; publicar puertos
