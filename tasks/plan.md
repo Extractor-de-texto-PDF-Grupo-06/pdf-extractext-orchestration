@@ -42,7 +42,6 @@ T6 extractor con metadatos (PR a valendotjpg) ─────┤
 
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
-| Sin acceso de Claude a GitHub, cada cambio pasa por la máquina de cotthss | Alto: frena todo | Vincular GitHub en claude.ai el viernes |
 | El PR del extractor depende de que valendotjpg lo revise | Medio: bloquea los metadatos | Pedirle la revisión el sábado; web tolera `metadata` ausente |
 | Traefik rinde menos que el nginx afinado para PDFs grandes | Medio: criterio de rendimiento | T13 mide temprano; si no alcanza, ajustar o justificar con datos |
 | Docker en Windows convierte los finales de línea de los scripts | Bajo | `.gitattributes` con `eol=lf` en cada repositorio |
