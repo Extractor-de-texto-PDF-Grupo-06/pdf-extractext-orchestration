@@ -21,6 +21,8 @@ jobs:
         run: uv sync --group dev
 
       - name: Validar Compose
+        env:
+          MONGO_ROOT_PASSWORD: T11TestPassword123
         run: docker compose -f docker-compose.yml config --quiet
 
       - name: Ejecutar tests estáticos
