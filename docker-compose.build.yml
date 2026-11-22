@@ -10,11 +10,11 @@
 
 services:
   web:
-    build: ../../pdf-extractext-web
+    build: ../pdf-extractext-web
     pull_policy: build
 
   documents:
-    build: ../../pdf-extractext-documents/pdf-extractext-documents
+    build: ../pdf-extractext-documents
     pull_policy: build
 
   # Usa la imagen que construye documents: no hace falta construirla dos veces.
@@ -22,11 +22,11 @@ services:
     pull_policy: never
 
   extractor:
-    build: ../../pdf-extractext-extractor/pdf-extractext-extractor
+    build: ../pdf-extractext-extractor
     pull_policy: build
 
   config:
-    build: ../../pdf-extractext-config/pdf-extractext-config
+    build: ../pdf-extractext-config
     pull_policy: build
 
   config-seed:
