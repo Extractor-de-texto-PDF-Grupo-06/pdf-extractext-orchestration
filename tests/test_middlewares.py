@@ -26,7 +26,18 @@ def test_el_entrypoint_interno_del_extractor_no_tiene_rate_limit():
     router_interno = COMPOSE[inicio:final]
 
     assert "rate-limit" not in router_interno
-    assert "public-retry" not in router_interno
+
+
+def test_el_entrypoint_interno_del_extractor_tiene_retry_sin_rate_limit():
+    assert "traefik.http.middlewares.internal-extractor-retry.retry.attempts=" in COMPOSE
+    assert "traefik.http.routers.extractor-interno.middlewares=internal-extractor-retry" in COMPOSE
+
+    inicio = COMPOSE.index("traefik.http.routers.extractor-interno.rule")
+    final = COMPOSE.index("traefik.http.services.extractor.loadbalancer.server.port", inicio)
+    router_interno = COMPOSE[inicio:final]
+
+    assert "internal-extractor-retry" in router_interno
+    assert "public-rate-limit" not in router_interno
 
 
 def test_los_valores_predeterminados_cumplen_la_especificacion():
