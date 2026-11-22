@@ -60,7 +60,7 @@ terminaron bien. Para apagar: `docker compose down` (con `-v` borra también los
 | http://localhost/extractor/extract | API del extractor |
 | http://localhost/config/ | API de config |
 | http://consul.localhost/ | Interfaz de Consul |
-| http://localhost:8080/ | Panel de Traefik: rutas, servicios y réplicas |
+| http://localhost:8080/ o http://traefik.localhost/ | Panel de Traefik: rutas, servicios y réplicas |
 
 Traefik quita el prefijo antes de reenviar, así que ningún servicio sabe que existe.
 

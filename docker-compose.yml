@@ -46,6 +46,20 @@ services:
       # Solo lectura: Traefik únicamente consulta qué contenedores hay.
       - /var/run/docker.sock:/var/run/docker.sock:ro
     security_opt: ["no-new-privileges:true"]
+    labels:
+      - traefik.enable=true
+      # Panel también en http://traefik.localhost. Con un router propio, Traefik no
+      # inventa uno por defecto para su propio contenedor.
+      - traefik.http.routers.dashboard.rule=Host(`traefik.localhost`)
+      - traefik.http.routers.dashboard.entrypoints=web
+      - traefik.http.routers.dashboard.service=api@internal
+      # Middlewares que usan las rutas públicas de varios servicios. Van acá y no en un
+      # servicio: Traefik descarta los labels de un contenedor apagado o unhealthy, y si
+      # vivieran en documents, su caída dejaría sin rutas a la interfaz, al extractor y a
+      # config.
+      - traefik.http.middlewares.public-rate-limit.ratelimit.average=${TRAEFIK_RATE_LIMIT_AVERAGE:-100}
+      - traefik.http.middlewares.public-rate-limit.ratelimit.burst=${TRAEFIK_RATE_LIMIT_BURST:-200}
+      - traefik.http.middlewares.public-retry.retry.attempts=${TRAEFIK_RETRY_ATTEMPTS:-3}
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 10s
@@ -104,9 +118,6 @@ services:
       - traefik.http.routers.documents.middlewares=documents-sin-prefijo,public-rate-limit,public-retry
       - traefik.http.routers.documents.service=documents
       - traefik.http.middlewares.documents-sin-prefijo.stripprefix.prefixes=/documents
-      - traefik.http.middlewares.public-rate-limit.ratelimit.average=${TRAEFIK_RATE_LIMIT_AVERAGE:-100}
-      - traefik.http.middlewares.public-rate-limit.ratelimit.burst=${TRAEFIK_RATE_LIMIT_BURST:-200}
-      - traefik.http.middlewares.public-retry.retry.attempts=${TRAEFIK_RETRY_ATTEMPTS:-3}
       - traefik.http.services.documents.loadbalancer.server.port=8000
     depends_on:
       documents-indexes:
