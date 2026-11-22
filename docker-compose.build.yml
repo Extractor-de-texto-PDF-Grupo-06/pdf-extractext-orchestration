@@ -1,0 +1,33 @@
+# Desarrollo: construye las imágenes desde los repositorios clonados al lado de este, en
+# lugar de bajarlas de ghcr. Todo lo demás es igual que en producción (factor X).
+#
+#   ../pdf-extractext-web
+#   ../pdf-extractext-documents
+#   ../pdf-extractext-extractor
+#   ../pdf-extractext-config
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build --wait
+
+services:
+  web:
+    build: ../pdf-extractext-web
+    pull_policy: build
+
+  documents:
+    build: ../pdf-extractext-documents
+    pull_policy: build
+
+  # Usa la imagen que construye documents: no hace falta construirla dos veces.
+  documents-indexes:
+    pull_policy: never
+
+  extractor:
+    build: ../pdf-extractext-extractor
+    pull_policy: build
+
+  config:
+    build: ../pdf-extractext-config
+    pull_policy: build
+
+  config-seed:
+    pull_policy: never
