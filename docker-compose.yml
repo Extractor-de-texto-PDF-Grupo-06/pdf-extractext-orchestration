@@ -74,6 +74,7 @@ services:
       - traefik.http.routers.web.rule=PathPrefix(`/`)
       - traefik.http.routers.web.priority=1
       - traefik.http.routers.web.entrypoints=web
+      - traefik.http.routers.web.middlewares=public-rate-limit,public-retry
       - traefik.http.routers.web.service=web
       - traefik.http.services.web.loadbalancer.server.port=8000
     depends_on:
@@ -100,9 +101,12 @@ services:
       - traefik.enable=true
       - traefik.http.routers.documents.rule=PathPrefix(`/documents`)
       - traefik.http.routers.documents.entrypoints=web
-      - traefik.http.routers.documents.middlewares=documents-sin-prefijo
+      - traefik.http.routers.documents.middlewares=documents-sin-prefijo,public-rate-limit,public-retry
       - traefik.http.routers.documents.service=documents
       - traefik.http.middlewares.documents-sin-prefijo.stripprefix.prefixes=/documents
+      - traefik.http.middlewares.public-rate-limit.ratelimit.average=${TRAEFIK_RATE_LIMIT_AVERAGE:-100}
+      - traefik.http.middlewares.public-rate-limit.ratelimit.burst=${TRAEFIK_RATE_LIMIT_BURST:-200}
+      - traefik.http.middlewares.public-retry.retry.attempts=${TRAEFIK_RETRY_ATTEMPTS:-3}
       - traefik.http.services.documents.loadbalancer.server.port=8000
     depends_on:
       documents-indexes:
@@ -129,7 +133,7 @@ services:
       # Pública, con prefijo: /extractor/extract.
       - traefik.http.routers.extractor.rule=PathPrefix(`/extractor`)
       - traefik.http.routers.extractor.entrypoints=web
-      - traefik.http.routers.extractor.middlewares=extractor-sin-prefijo
+      - traefik.http.routers.extractor.middlewares=extractor-sin-prefijo,public-rate-limit,public-retry
       - traefik.http.routers.extractor.service=extractor
       - traefik.http.middlewares.extractor-sin-prefijo.stripprefix.prefixes=/extractor
       # Interna, sin prefijo: la que usa web (http://traefik:8081/extract).
@@ -149,7 +153,7 @@ services:
       - traefik.enable=true
       - traefik.http.routers.config.rule=PathPrefix(`/config`)
       - traefik.http.routers.config.entrypoints=web
-      - traefik.http.routers.config.middlewares=config-sin-prefijo
+      - traefik.http.routers.config.middlewares=config-sin-prefijo,public-rate-limit,public-retry
       - traefik.http.routers.config.service=config
       - traefik.http.middlewares.config-sin-prefijo.stripprefix.prefixes=/config
       - traefik.http.services.config.loadbalancer.server.port=8000
