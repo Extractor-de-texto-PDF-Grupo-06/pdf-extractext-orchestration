@@ -34,10 +34,11 @@ orden, y esa es la evidencia de TDD.
 ## Pull requests
 
 - Uno por issue, con `Closes #N` en la descripción para que el Project lo mueva solo.
-- Para fusionar alcanza con que **la CI pase**. La revisión es opcional.
-- **Excepción:** un cambio de contrato entre servicios (una ruta, un campo o un código de
-  respuesta nuevo) lo mira otro integrante antes de fusionar, porque es lo que rompe a
-  otro servicio.
+- Para fusionar alcanza con que **la CI pase** (`tests` y `docker` en los servicios). No
+  hace falta aprobación de otro integrante; la revisión es opcional.
+- Un cambio de contrato entre servicios (una ruta, un campo o un código de respuesta
+  nuevo) se avisa al grupo y actualiza `SPEC.md` en el mismo pull request, porque es lo
+  que rompe a otro servicio.
 - La descripción dice qué cambia, por qué y cómo se probó.
 
 Elegimos no exigir aprobación para esta entrega: con una sola persona aprobando, sus

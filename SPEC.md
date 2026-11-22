@@ -1,6 +1,6 @@
 # Spec: pdf-extractext en microservicios — V1
 
-Fecha: 19/11/2026 · Entrega: miércoles 25/11/2026
+Fecha: 19/11/2026 · Actualizada: 22/11/2026 · Entrega: miércoles 25/11/2026
 
 ## Objetivo
 
@@ -23,7 +23,7 @@ está en [Problemas del factor I](#problemas-del-factor-i-que-resuelve-esta-vers
 ## Arquitectura
 
 ```
-                   http://pdf.localhost                      http://consul.localhost
+                   http://localhost                          http://consul.localhost
                            │                                          │
                        Traefik :80 ─────── panel :8080                │
         ┌──────────────┬───┴──────────┬───────────────┐               │
@@ -43,6 +43,10 @@ está en [Problemas del factor I](#problemas-del-factor-i-que-resuelve-esta-vers
 | `pdf-extractext-extractor` | PDF → texto, cantidad de páginas y metadatos. Sin estado | PyMuPDF | — |
 | `pdf-extractext-config` | CRUD de la configuración centralizada | Consul (es el único que lo toca) | KV bajo `pdf-extractext/` |
 
+El compose de orchestration levanta además dos procesos de una sola vez (factor XII):
+`documents-indexes` crea el índice único de checksum antes de que arranque documents, y
+`config-seed` carga en Consul los valores iniciales de web sin pisar los que ya existen.
+
 Todos los repositorios viven en la organización de GitHub
 [`Extractor-de-texto-PDF-Grupo-06`](https://github.com/Extractor-de-texto-PDF-Grupo-06).
 Las tareas se siguen como issues en un Project de la organización.
@@ -53,6 +57,12 @@ Las tareas se siguen como issues en un Project de la organización.
 |---|---|---|
 | **Rate limit** | Rutas públicas (entrypoint `web`, puerto 80) | Promedio y ráfaga por IP de origen, configurables por `.env` (por defecto 100 y 200 por segundo). Al superarlo responde 429. El entrypoint interno que usa web para llegar al extractor no lo tiene, para no limitar las pruebas de carga |
 | **Retry** | Rutas públicas y la interna del extractor | Hasta 3 intentos. Traefik solo reintenta cuando no pudo conectar con el servicio, así que un pedido que llegó a procesarse no se repite |
+
+Los middlewares que comparten varias rutas (`public-rate-limit` y `public-retry`) se
+definen en los labels del contenedor de **Traefik**, no en los de un servicio: Traefik
+descarta los labels de un contenedor apagado o unhealthy, y si vivieran en documents, su
+caída dejaría sin rutas a la interfaz, al extractor y a config. Un test de
+orchestration lo verifica.
 
 El circuit breaker no se configura en Traefik: vive en web (ver ADR 0004).
 
@@ -229,6 +239,18 @@ class UploadDocument:
 | Extremo a extremo | `pdf-extractext-orchestration/e2e`: entran por Traefik | Con el stack levantado |
 | Carga | k6 y Vegeta del repositorio del extractor | Antes de la entrega |
 
+### Integración continua
+
+Cada repositorio de servicio tiene una CI con dos jobs, que la protección de ramas exige
+en verde para fusionar:
+
+| Job | Qué hace |
+|---|---|
+| `tests` | `uv sync --frozen` y todos los tests, incluidos los de integración contra el MongoDB o el Consul que levanta la CI |
+| `docker` | Construye la imagen en cada pull request. Solo en un push a `main` la publica en ghcr con `latest` y el hash del commit |
+
+orchestration valida el compose y corre los tests de los middlewares.
+
 **TDD:** todo comportamiento nuevo empieza con un commit de tests en rojo y sigue con uno de
 implementación en verde. Los valores esperados son literales, nunca la misma fórmula que
 el código.
@@ -236,13 +258,14 @@ el código.
 ## Límites
 
 - **Siempre:** correr los tests antes de cada commit; entrar por pull request hacia `develop`
-  con la CI en verde; un tema por pull request; leer la
+  con la CI en verde (no hace falta aprobación de otro integrante); un tema por pull request; leer la
   configuración solo desde `Settings`; responder errores en el formato del contrato;
   conservar el historial al mover código entre repositorios.
-- **Preguntar antes:** cambiar un contrato HTTP (lo revisa otro integrante antes de fusionar); agregar una dependencia; transferir o
-  archivar un repositorio; tocar el repositorio del extractor (pertenece a valendotjpg);
-  cualquier cambio en `main` de un repositorio ajeno.
-- **Nunca:** escribir el PDF a disco; guardar secretos en Consul o en Git; publicar puertos
+- **Avisar al grupo:** cambiar un contrato HTTP, porque rompe a los servicios que lo usan
+  (se actualiza la especificación en el mismo pull request); agregar una dependencia;
+  transferir o archivar un repositorio.
+- **Nunca:** escribir el PDF a disco; guardar secretos en Consul o en Git; escribir
+  secretos en los logs (las URIs se loguean con la contraseña enmascarada); publicar puertos
   de MongoDB o Consul en la máquina; que un servicio hable con la base o con Consul de
   otro; copiar código de otros grupos de la cátedra; hacer push directo a `main`.
 
@@ -250,7 +273,7 @@ el código.
 
 ### Funcionales
 
-- [ ] Subir un PDF válido desde `http://pdf.localhost` lo guarda con texto, checksum,
+- [ ] Subir un PDF válido desde `http://localhost` lo guarda con texto, checksum,
       cantidad de páginas y metadatos.
 - [ ] Subir el mismo PDF otra vez responde 409, también si las dos subidas llegan a la vez.
 - [ ] Listar, ver, editar y borrar funcionan desde la interfaz.
@@ -260,6 +283,7 @@ el código.
 - [ ] Superar el rate limit en una ruta pública responde 429; el entrypoint interno del
       extractor no tiene límite.
 - [ ] Con config apagado, web sigue funcionando con sus variables de entorno.
+- [ ] Con documents apagado, la interfaz, el extractor y config siguen respondiendo.
 
 ### Doce factores
 
@@ -282,8 +306,8 @@ el código.
 - [ ] **X.** Desarrollo y producción usan las mismas imágenes; el compose de desarrollo solo
       agrega la construcción local.
 - [ ] **XI.** Los logs van a stdout; ningún servicio escribe archivos de log.
-- [ ] **XII.** La creación del índice único de MongoDB corre como proceso de administración
-      de una sola vez.
+- [ ] **XII.** La creación del índice único de MongoDB y la carga inicial de la
+      configuración corren como procesos de administración de una sola vez.
 
 ### Seguridad de Docker
 
@@ -291,7 +315,8 @@ el código.
       (10001).
 - [ ] Los Dockerfile son multi-stage: la imagen final tiene solo el entorno virtual y el
       código, sin uv ni herramientas de construcción, y declara un `HEALTHCHECK`.
-- [ ] `read_only: true`, `cap_drop: [ALL]` y `no-new-privileges` en los contenedores propios.
+- [ ] `read_only: true`, `cap_drop: [ALL]` y `no-new-privileges` en los contenedores
+      propios, con `/tmp` en memoria.
 - [ ] MongoDB con usuario y contraseña desde `.env`; solo documents recibe las credenciales.
 - [ ] Solo Traefik publica puertos en la máquina.
 - [ ] Sin vulnerabilidades conocidas de gravedad alta o crítica en las dependencias
@@ -323,5 +348,5 @@ el código.
 
 ## Preguntas abiertas
 
-1. **El monolito restaurado** (`5b38628`) tiene que seguir levantando con
-   `docker compose up`: falta comprobarlo antes de archivarlo.
+Ninguna. El monolito restaurado (`5b38628`) se comprobó con `docker compose up` y quedó
+archivado con la etiqueta `monolito-v1`.
