@@ -168,6 +168,9 @@ clonados al lado.
 - [ ] Una ráfaga sobre `/documents` por encima del límite recibe `429`.
 - [ ] El entrypoint interno del extractor no tiene rate limit.
 
+**Revisión 22/11:** configuración presente; los cinco tests estáticos pasan. La prueba e2e
+de rate limit se ejecuta con el conjunto T10.
+
 **Dependencias:** T8.
 
 #### T10 · orchestration · Tests de extremo a extremo · M
@@ -176,6 +179,10 @@ Por Traefik: subida, duplicado (también concurrente), CRUD, circuito abierto co
 extractor apagado, cambio de configuración en caliente, config caído y `429`.
 
 - [ ] `uv run pytest -m e2e` en verde con el stack levantado.
+
+**Revisión 22/11:** los tests ahora generan PDFs propios, exigen resultados exactos para
+duplicados y concurrencia, verifican el cambio de límite y no dependen de un clon externo.
+La ejecución completa está en curso contra un stack aislado.
 
 **Dependencias:** T9.
 
@@ -189,7 +196,19 @@ extractor apagado, cambio de configuración en caliente, config caído y `429`.
 La CI de cada servicio publica `ghcr.io/extractor-de-texto-pdf-grupo-06/<repo>` con el
 hash del commit y `latest` al fusionar en `main`. `docker-compose.yml` usa solo imágenes.
 
+- [x] web — workflow presente en `main`; CI de publicación exitosa.
+- [x] documents — workflow presente en `main`; CI de publicación exitosa.
+- [ ] extractor — workflow está en `develop`; PR de release
+      [#8](https://github.com/Extractor-de-texto-PDF-Grupo-06/pdf-extractext-extractor/pull/8)
+      hacia `main` está abierto y requiere revisión. El job `test` pasa; `publish` está
+      omitido hasta fusionar en `main`.
+- [x] config — workflow presente en `main`; CI de publicación exitosa.
+
 - [ ] `docker compose up -d --wait` sin clonar ningún repositorio levanta el sistema.
+
+**Revisión 22/11:** el pull local sin autenticación respondió `unauthorized`. El README
+explica el login con `read:packages`; no se comprobó aún el arranque limpio autenticado.
+La fusión del PR #8 y credenciales de GHCR son los bloqueos pendientes.
 
 **Alternativa si no alcanza el tiempo:** construir desde etiquetas de Git (`v1.0.0`).
 **Dependencias:** T8.

@@ -1,14 +1,15 @@
+import os
 import subprocess
 import time
 from pathlib import Path
+from uuid import uuid4
 
 import httpx
 import pytest
 
 
-BASE_URL = "http://localhost"
+BASE_URL = os.getenv("E2E_BASE_URL", "http://localhost")
 RAIZ = Path(__file__).resolve().parents[1]
-PDF = RAIZ.parent.parent / "pdf-extractext-config" / "docs" / "Proyecto 2026 Desarrollo de Software Etapa N°1.pdf"
 
 
 @pytest.fixture
@@ -19,8 +20,18 @@ def client():
 
 @pytest.fixture(scope="session", autouse=True)
 def esperar_stack():
-    subprocess.run(["docker", "compose", "start", "extractor", "config"], check=True, capture_output=True)
-    subprocess.run(["docker", "compose", "restart", "web"], check=True, capture_output=True)
+    subprocess.run(
+        ["docker", "compose", "start", "extractor", "config"],
+        cwd=RAIZ,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["docker", "compose", "restart", "web"],
+        cwd=RAIZ,
+        check=True,
+        capture_output=True,
+    )
     time.sleep(3)
 
     with httpx.Client(base_url=BASE_URL, timeout=5.0) as session:
@@ -36,6 +47,7 @@ def esperar_stack():
 
 
 @pytest.fixture
-def pdf_valido():
-    assert PDF.exists(), f"No existe el PDF de prueba: {PDF}"
-    return PDF.read_bytes()
+def pdf_valido(request):
+    from pdf_factory import make_pdf
+
+    return make_pdf(f"{request.node.name}-{uuid4().hex}")
