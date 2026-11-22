@@ -137,9 +137,12 @@ services:
       - traefik.http.routers.extractor.service=extractor
       - traefik.http.middlewares.extractor-sin-prefijo.stripprefix.prefixes=/extractor
       # Interna, sin prefijo: la que usa web (http://traefik:8081/extract).
+      # Tiene retry por reconexión, pero sin rate limit para no afectar carga ni circuit breaker.
       - traefik.http.routers.extractor-interno.rule=PathPrefix(`/`)
       - traefik.http.routers.extractor-interno.entrypoints=internal
+      - traefik.http.routers.extractor-interno.middlewares=internal-extractor-retry
       - traefik.http.routers.extractor-interno.service=extractor
+      - traefik.http.middlewares.internal-extractor-retry.retry.attempts=${TRAEFIK_RETRY_ATTEMPTS:-3}
       - traefik.http.services.extractor.loadbalancer.server.port=8000
 
   config:
