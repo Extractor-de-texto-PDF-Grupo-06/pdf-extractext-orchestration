@@ -1,0 +1,276 @@
+# Sistema completo de pdf-extractext: Traefik como única puerta de entrada, los cuatro
+# microservicios, Consul para la configuración centralizada y MongoDB.
+#
+#   cp .env.example .env              # completar MONGO_ROOT_PASSWORD
+#   docker compose up -d --wait       # con las imágenes de ghcr (T11)
+#
+# Para construir desde los repositorios clonados al lado, ver docker-compose.build.yml.
+# Solo Traefik publica puertos en la máquina (ADR 0002).
+
+# Distinto del proyecto del monolito (pdf-extractext), para que los dos no se pisen.
+name: pdf-extractext-sistema
+
+# ── Endurecimiento común de los contenedores propios ─────────────────────────────────
+# Sistema de archivos de solo lectura, sin capacidades de Linux y sin escalar privilegios.
+# /tmp en memoria por si una librería necesita un archivo temporal: nunca toca el disco.
+x-endurecido: &endurecido
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs: ["/tmp"]
+  restart: unless-stopped
+
+services:
+  # ── Puerta de entrada ──────────────────────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.6
+    command:
+      # Descubre los servicios por los labels; solo los que dicen traefik.enable=true.
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      # Público: lo que usan el navegador y los tests de extremo a extremo.
+      - --entrypoints.web.address=:80
+      # Interno: web llega por acá al extractor y Traefik balancea las réplicas (ADR 0005).
+      # No se publica en la máquina.
+      - --entrypoints.internal.address=:8081
+      # Panel de Traefik en :8080, solo para ver rutas y servicios en local.
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --ping=true
+      - --log.level=INFO
+      - --accesslog=false
+    ports:
+      - "${TRAEFIK_HTTP_PORT:-80}:80"
+      - "${TRAEFIK_DASHBOARD_PORT:-8080}:8080"
+    volumes:
+      # Solo lectura: Traefik únicamente consulta qué contenedores hay.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    security_opt: ["no-new-privileges:true"]
+    labels:
+      - traefik.enable=true
+      # Panel también en http://traefik.localhost. Con un router propio, Traefik no
+      # inventa uno por defecto para su propio contenedor.
+      - traefik.http.routers.dashboard.rule=Host(`traefik.localhost`)
+      - traefik.http.routers.dashboard.entrypoints=web
+      - traefik.http.routers.dashboard.service=api@internal
+      # Middlewares que usan las rutas públicas de varios servicios. Van acá y no en un
+      # servicio: Traefik descarta los labels de un contenedor apagado o unhealthy, y si
+      # vivieran en documents, su caída dejaría sin rutas a la interfaz, al extractor y a
+      # config.
+      - traefik.http.middlewares.public-rate-limit.ratelimit.average=${TRAEFIK_RATE_LIMIT_AVERAGE:-100}
+      - traefik.http.middlewares.public-rate-limit.ratelimit.burst=${TRAEFIK_RATE_LIMIT_BURST:-200}
+      - traefik.http.middlewares.public-retry.retry.attempts=${TRAEFIK_RETRY_ATTEMPTS:-3}
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  # ── Microservicios ─────────────────────────────────────────────────────────────────
+  web:
+    <<: *endurecido
+    image: ghcr.io/extractor-de-texto-pdf-grupo-06/pdf-extractext-web:${IMAGE_TAG:-latest}
+    environment:
+      DOCUMENTS_URL: http://documents:8000
+      # Por el entrypoint interno de Traefik, no directo a las réplicas (ADR 0005).
+      EXTRACTOR_URL: http://traefik:8081
+      CONFIG_URL: http://config:8000
+      # Respaldo si config no responde; los valores vigentes viven en Consul.
+      MAX_FILE_SIZE_MB: ${WEB_MAX_FILE_SIZE_MB:-10}
+      EXTRACTOR_TIMEOUT_SECONDS: ${WEB_EXTRACTOR_TIMEOUT_SECONDS:-30}
+      CIRCUIT_BREAKER_FAILURE_THRESHOLD: ${WEB_CIRCUIT_BREAKER_FAILURE_THRESHOLD:-5}
+      CIRCUIT_BREAKER_RECOVERY_SECONDS: ${WEB_CIRCUIT_BREAKER_RECOVERY_SECONDS:-30}
+    labels:
+      - traefik.enable=true
+      # Todo lo que no tomen las otras rutas: la interfaz y /api.
+      - traefik.http.routers.web.rule=PathPrefix(`/`)
+      - traefik.http.routers.web.priority=1
+      - traefik.http.routers.web.entrypoints=web
+      - traefik.http.routers.web.middlewares=public-rate-limit,public-retry
+      - traefik.http.routers.web.service=web
+      - traefik.http.services.web.loadbalancer.server.port=8000
+    depends_on:
+      traefik:
+        condition: service_healthy
+      documents:
+        condition: service_healthy
+      # Espera la carga inicial de la configuración para arrancar con los valores de
+      # Consul. Una vez arriba, si config se cae, web sigue con sus variables de entorno
+      # (ADR 0003). Además, sin una dependencia, `up --wait` toma la salida de config-seed
+      # como un error aunque termine bien.
+      config-seed:
+        condition: service_completed_successfully
+
+  documents:
+    <<: *endurecido
+    image: ghcr.io/extractor-de-texto-pdf-grupo-06/pdf-extractext-documents:${IMAGE_TAG:-latest}
+    environment: &documents-env
+      # Único servicio que recibe las credenciales de MongoDB.
+      MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:?Falta MONGO_ROOT_PASSWORD en .env}@mongodb:27017/?authSource=admin
+      MONGODB_DB_NAME: ${MONGODB_DB_NAME:-pdf_extractext}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.documents.rule=PathPrefix(`/documents`)
+      - traefik.http.routers.documents.entrypoints=web
+      - traefik.http.routers.documents.middlewares=documents-sin-prefijo,public-rate-limit,public-retry
+      - traefik.http.routers.documents.service=documents
+      - traefik.http.middlewares.documents-sin-prefijo.stripprefix.prefixes=/documents
+      - traefik.http.services.documents.loadbalancer.server.port=8000
+    depends_on:
+      documents-indexes:
+        condition: service_completed_successfully
+
+  extractor:
+    <<: *endurecido
+    image: ghcr.io/extractor-de-texto-pdf-grupo-06/pdf-extractext-extractor:${IMAGE_TAG:-latest}
+    environment:
+      MAX_FILE_SIZE_MB: ${EXTRACTOR_MAX_FILE_SIZE_MB:-10}
+      # Traefik reutiliza las conexiones; el log de cada pedido cuesta CPU bajo carga.
+      UVICORN_TIMEOUT_KEEP_ALIVE: 60
+      UVICORN_ACCESS_LOG: "false"
+    deploy:
+      # Factor VIII: escala con réplicas; Traefik las descubre y las balancea.
+      replicas: ${EXTRACTOR_REPLICAS:-5}
+      resources:
+        # Límites del TP de carga por réplica.
+        limits:
+          cpus: "1.0"
+          memory: 1G
+    labels:
+      - traefik.enable=true
+      # Pública, con prefijo: /extractor/extract.
+      - traefik.http.routers.extractor.rule=PathPrefix(`/extractor`)
+      - traefik.http.routers.extractor.entrypoints=web
+      - traefik.http.routers.extractor.middlewares=extractor-sin-prefijo,public-rate-limit,public-retry
+      - traefik.http.routers.extractor.service=extractor
+      - traefik.http.middlewares.extractor-sin-prefijo.stripprefix.prefixes=/extractor
+      # Interna, sin prefijo: la que usa web (http://traefik:8081/extract).
+      # Tiene retry por reconexión, pero sin rate limit para no afectar carga ni circuit breaker.
+      - traefik.http.routers.extractor-interno.rule=PathPrefix(`/`)
+      - traefik.http.routers.extractor-interno.entrypoints=internal
+      - traefik.http.routers.extractor-interno.middlewares=internal-extractor-retry
+      - traefik.http.routers.extractor-interno.service=extractor
+      - traefik.http.middlewares.internal-extractor-retry.retry.attempts=${TRAEFIK_RETRY_ATTEMPTS:-3}
+      - traefik.http.services.extractor.loadbalancer.server.port=8000
+
+  config:
+    <<: *endurecido
+    image: ghcr.io/extractor-de-texto-pdf-grupo-06/pdf-extractext-config:${IMAGE_TAG:-latest}
+    environment:
+      # Único servicio que habla con Consul (ADR 0003).
+      CONSUL_URL: http://consul:8500
+      CONSUL_KV_ROOT: pdf-extractext
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.config.rule=PathPrefix(`/config`)
+      - traefik.http.routers.config.entrypoints=web
+      - traefik.http.routers.config.middlewares=config-sin-prefijo,public-rate-limit,public-retry
+      - traefik.http.routers.config.service=config
+      - traefik.http.middlewares.config-sin-prefijo.stripprefix.prefixes=/config
+      - traefik.http.services.config.loadbalancer.server.port=8000
+    depends_on:
+      consul:
+        condition: service_healthy
+
+  # ── Procesos de administración de una sola vez (factor XII) ────────────────────────
+  documents-indexes:
+    <<: *endurecido
+    image: ghcr.io/extractor-de-texto-pdf-grupo-06/pdf-extractext-documents:${IMAGE_TAG:-latest}
+    command: ["python", "-m", "app.admin.create_indexes"]
+    environment: *documents-env
+    restart: "no"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  config-seed:
+    <<: *endurecido
+    # La misma imagen de config: carga los valores iniciales de web por su API HTTP.
+    # Si una clave ya existe (409) la deja como está, así no pisa un cambio hecho en caliente.
+    image: ghcr.io/extractor-de-texto-pdf-grupo-06/pdf-extractext-config:${IMAGE_TAG:-latest}
+    environment:
+      CONFIG_URL: http://config:8000
+      SEED_WEB_MAX_FILE_SIZE_MB: ${WEB_MAX_FILE_SIZE_MB:-10}
+      SEED_WEB_EXTRACTOR_TIMEOUT_SECONDS: ${WEB_EXTRACTOR_TIMEOUT_SECONDS:-30}
+      SEED_WEB_CIRCUIT_BREAKER_FAILURE_THRESHOLD: ${WEB_CIRCUIT_BREAKER_FAILURE_THRESHOLD:-5}
+      SEED_WEB_CIRCUIT_BREAKER_RECOVERY_SECONDS: ${WEB_CIRCUIT_BREAKER_RECOVERY_SECONDS:-30}
+    command:
+      - python
+      - -c
+      - |
+        import json, os, sys, urllib.error, urllib.request
+
+        url = os.environ["CONFIG_URL"].rstrip("/") + "/"
+        fallo = False
+        for nombre, valor in sorted(os.environ.items()):
+            if not nombre.startswith("SEED_"):
+                continue
+            servicio, _, clave = nombre[len("SEED_"):].lower().partition("_")
+            cuerpo = json.dumps({"key": servicio + "/" + clave, "value": valor}).encode()
+            pedido = urllib.request.Request(
+                url, data=cuerpo, method="POST", headers={"Content-Type": "application/json"}
+            )
+            try:
+                with urllib.request.urlopen(pedido, timeout=5) as respuesta:
+                    codigo = respuesta.status
+            except urllib.error.HTTPError as error:
+                codigo = error.code
+            print(servicio + "/" + clave, codigo, "creada" if codigo == 201 else "ya existía" if codigo == 409 else "ERROR")
+            fallo = fallo or codigo not in (201, 409)
+        sys.exit(1 if fallo else 0)
+    restart: "no"
+    depends_on:
+      config:
+        condition: service_healthy
+
+  # ── Servicios de respaldo ──────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:9.0.4
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Falta MONGO_ROOT_PASSWORD en .env}
+    # Sin ports: solo documents llega a MongoDB, por la red interna.
+    volumes:
+      - mongodb-data:/data/db
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      # Por el nombre del servicio y no por localhost: la primera vez, la imagen levanta un
+      # mongod temporal escuchando solo en localhost para crear el usuario. Ese mongod
+      # responde el ping, pero desde la red todavía no se puede entrar.
+      test: ["CMD", "mongosh", "--quiet", "--host", "mongodb", "--eval", "db.adminCommand({ping: 1})"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  consul:
+    image: hashicorp/consul:2.1
+    # Servidor de un solo nodo: sin -server no hay líder y el KV no responde.
+    # -node fijo para que el nombre no cambie al recrear el contenedor.
+    command: agent -server -bootstrap-expect=1 -node=consul -client=0.0.0.0 -ui
+    # Sin ports: la interfaz se ve por Traefik en http://consul.localhost.
+    volumes:
+      - consul-data:/consul/data
+    security_opt: ["no-new-privileges:true"]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.consul.rule=Host(`consul.localhost`)
+      - traefik.http.routers.consul.entrypoints=web
+      - traefik.http.routers.consul.service=consul
+      - traefik.http.services.consul.loadbalancer.server.port=8500
+    healthcheck:
+      # Falla mientras no haya líder elegido.
+      test: ["CMD", "consul", "operator", "raft", "list-peers"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  mongodb-data:
+  consul-data:
