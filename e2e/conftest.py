@@ -8,7 +8,7 @@ import pytest
 
 BASE_URL = "http://localhost"
 RAIZ = Path(__file__).resolve().parents[1]
-PDF = RAIZ.parent.parent / "pdf-extractext-config" / "docs" / "Proyecto 2026 Desarrollo de Software Etapa N°1.pdf"
+PDF = RAIZ / "load" / "pdfs" / "2020-Scrum-Guide-Spanish-Latin-South-American.pdf"
 
 
 @pytest.fixture
