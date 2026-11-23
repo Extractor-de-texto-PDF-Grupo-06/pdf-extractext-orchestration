@@ -1,0 +1,15 @@
+POST http://traefik:8081/extract
+Content-Type: application/pdf
+@/load/pdfs/2020-Scrum-Guide-Spanish-Latin-South-American.pdf
+
+POST http://traefik:8081/extract
+Content-Type: application/pdf
+@/load/pdfs/Essential-Kanban-Condensed-Spanish.pdf
+
+POST http://traefik:8081/extract
+Content-Type: application/pdf
+@/load/pdfs/Filosofia Lean.pdf
+
+POST http://traefik:8081/extract
+Content-Type: application/pdf
+@/load/pdfs/scrum_manager_historias_usuario.pdf
