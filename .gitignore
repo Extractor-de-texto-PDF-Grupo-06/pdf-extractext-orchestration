@@ -224,4 +224,5 @@ __marimo__/
 
 # Pruebas de carga: PDFs de terceros y resultados
 load/pdfs/*.pdf
-load/results/
+load/results/*/vegeta.bin
+!load/results/**/*.log
