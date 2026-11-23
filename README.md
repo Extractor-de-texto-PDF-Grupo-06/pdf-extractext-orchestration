@@ -28,7 +28,20 @@ cp .env.example .env          # completar MONGO_ROOT_PASSWORD (solo letras y nú
 **Con las imágenes publicadas en ghcr:**
 
 ```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u <usuario> --password-stdin
 docker compose up -d --wait
+```
+
+Los paquetes de la organización pueden requerir autenticación. Si `docker compose pull`
+responde `unauthorized`, iniciá sesión con un token que tenga `read:packages` y acceso a
+los cuatro paquetes; no hace falta clonar los repositorios de los servicios.
+
+Para verificar que `latest` está publicado y es accesible antes de levantar el sistema:
+
+```bash
+docker compose pull
+docker compose up -d --wait
+docker compose ps
 ```
 
 **Construyendo desde el código**, con los cuatro repositorios de servicio clonados al

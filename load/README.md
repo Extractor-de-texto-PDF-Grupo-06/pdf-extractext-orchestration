@@ -16,6 +16,7 @@ hace falta publicar ningún puerto.
 2. Levantar el stack: `docker compose up -d --wait`.
 3. `powershell -File load/run.ps1`
 
-Los resultados quedan en `load/results/<fecha>/` (ignorado por Git).
+Los resultados quedan en `load/results/<fecha>/`. Se versionan los textos chicos (resumen
+de k6, reportes de Vegeta y estado de los servicios); `vegeta.bin` (~100 MB) queda ignorado.
 
 Referencia del profesor: 25,35 req/s en k6 y 16,65 req/s efectivos en Vegeta.

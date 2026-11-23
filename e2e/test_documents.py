@@ -1,3 +1,5 @@
+import hashlib
+
 import pytest
 
 
@@ -7,29 +9,34 @@ pytestmark = pytest.mark.e2e
 def test_crud_completo_por_la_interfaz(client, pdf_valido):
     subida = client.post(
         "/api/documents",
-        files={"file": ("crud-t10.pdf", pdf_valido, "application/pdf")},
+        files={"file": ("crud-t10-unico.pdf", pdf_valido, "application/pdf")},
     )
-    if subida.status_code == 409:
-        checksum = __import__("hashlib").sha256(pdf_valido).hexdigest()
-        encontrados = client.get("/api/documents", params={"checksum": checksum}).json()["data"]
-        assert encontrados
-        id_documento = encontrados[0]["id"]
-    else:
-        assert subida.status_code == 201
-        id_documento = subida.json()["id"]
+    assert subida.status_code == 201
+    id_documento = subida.json()["id"]
+    checksum = hashlib.sha256(pdf_valido).hexdigest()
 
-    respuesta = client.get(f"/api/documents/{id_documento}")
-    assert respuesta.status_code == 200
+    try:
+        listado = client.get("/api/documents")
+        assert listado.status_code == 200
+        assert any(item["checksum"] == checksum for item in listado.json()["data"])
 
-    editado = client.put(
-        f"/api/documents/{id_documento}",
-        json={"filename": "editado-t10.pdf"},
-    )
-    assert editado.status_code == 200
-    assert editado.json()["filename"] == "editado-t10.pdf"
+        respuesta = client.get(f"/api/documents/{id_documento}")
+        assert respuesta.status_code == 200
 
-    eliminado = client.delete(f"/api/documents/{id_documento}")
-    assert eliminado.status_code == 204
+        editado = client.put(
+            f"/api/documents/{id_documento}",
+            json={"filename": "editado-t10.pdf"},
+        )
+        assert editado.status_code == 200
+        assert editado.json()["filename"] == "editado-t10.pdf"
 
-    inexistente = client.get(f"/api/documents/{id_documento}")
-    assert inexistente.status_code == 404
+        id_borrado = id_documento
+        eliminado = client.delete(f"/api/documents/{id_borrado}")
+        assert eliminado.status_code == 204
+        id_documento = None
+
+        inexistente = client.get(f"/api/documents/{id_borrado}")
+        assert inexistente.status_code == 404
+    finally:
+        if id_documento:
+            client.delete(f"/api/documents/{id_documento}")
