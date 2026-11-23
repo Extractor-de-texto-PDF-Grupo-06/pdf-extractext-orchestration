@@ -221,3 +221,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Pruebas de carga: PDFs de terceros y resultados
+load/pdfs/*.pdf
+load/results/

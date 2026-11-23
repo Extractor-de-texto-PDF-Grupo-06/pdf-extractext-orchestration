@@ -43,7 +43,6 @@ T6 extractor con metadatos (PR a valendotjpg) ─────┤
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
 | El PR del extractor depende de que valendotjpg lo revise | Medio: bloquea los metadatos | Pedirle la revisión el sábado; web tolera `metadata` ausente |
-| Traefik rinde menos que el nginx afinado para PDFs grandes | Medio: criterio de rendimiento | T13 mide temprano; si no alcanza, ajustar o justificar con datos |
 | Docker en Windows convierte los finales de línea de los scripts | Bajo | `.gitattributes` con `eol=lf` en cada repositorio |
 | El tiempo no alcanza | Alto | Fases cortables: sin T14 y T15 igual se entrega; T11 tiene alternativa con etiquetas de Git |
 
@@ -206,7 +205,7 @@ hash del commit y `latest` al fusionar en `main`. `docker-compose.yml` usa solo 
 #### T13 · orchestration · Pruebas de carga a través de Traefik · M
 
 - [ ] k6 y Vegeta del TP superan 25,35 req/s y 16,65 req/s efectivos.
-- [ ] Informe con los resultados y la comparación contra nginx.
+- [ ] Informe con los resultados y la comparación contra la referencia del profesor.
 
 **Dependencias:** T8.
 
