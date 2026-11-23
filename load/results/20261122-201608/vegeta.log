@@ -1,0 +1,10 @@
+Requests      [total, rate, throughput]         1500, 50.03, 25.25
+Duration      [total, attack, wait]             54.882s, 29.98s, 24.902s
+Latencies     [min, mean, 50, 90, 95, 99, max]  79.77ms, 9.301s, 8.574s, 19.812s, 25.053s, 27.246s, 30s
+Bytes In      [total, mean]                     108566172, 72377.45
+Bytes Out     [total, mean]                     5136042284, 3424028.19
+Success       [ratio]                           92.40%
+Status Codes  [code:count]                      0:1  200:1386  503:113  
+Error Set:
+503 Service Unavailable
+Post "http://traefik:8081/extract": context deadline exceeded (Client.Timeout exceeded while awaiting headers)

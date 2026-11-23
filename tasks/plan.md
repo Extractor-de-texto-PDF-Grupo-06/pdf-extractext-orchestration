@@ -43,7 +43,6 @@ T6 extractor con metadatos (PR a valendotjpg) ─────┤
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
 | El PR del extractor depende de que valendotjpg lo revise | Medio: bloquea los metadatos | Pedirle la revisión el sábado; web tolera `metadata` ausente |
-| Traefik rinde menos que el nginx afinado para PDFs grandes | Medio: criterio de rendimiento | T13 mide temprano; si no alcanza, ajustar o justificar con datos |
 | Docker en Windows convierte los finales de línea de los scripts | Bajo | `.gitattributes` con `eol=lf` en cada repositorio |
 | El tiempo no alcanza | Alto | Fases cortables: sin T14 y T15 igual se entrega; T11 tiene alternativa con etiquetas de Git |
 
@@ -168,6 +167,9 @@ clonados al lado.
 - [ ] Una ráfaga sobre `/documents` por encima del límite recibe `429`.
 - [ ] El entrypoint interno del extractor no tiene rate limit.
 
+**Revisión 22/11:** configuración presente; los cinco tests estáticos pasan. La prueba e2e
+de rate limit se ejecuta con el conjunto T10.
+
 **Dependencias:** T8.
 
 #### T10 · orchestration · Tests de extremo a extremo · M
@@ -176,6 +178,10 @@ Por Traefik: subida, duplicado (también concurrente), CRUD, circuito abierto co
 extractor apagado, cambio de configuración en caliente, config caído y `429`.
 
 - [ ] `uv run pytest -m e2e` en verde con el stack levantado.
+
+**Revisión 22/11:** los tests ahora generan PDFs propios, exigen resultados exactos para
+duplicados y concurrencia, verifican el cambio de límite y no dependen de un clon externo.
+La ejecución completa está en curso contra un stack aislado.
 
 **Dependencias:** T9.
 
@@ -189,7 +195,19 @@ extractor apagado, cambio de configuración en caliente, config caído y `429`.
 La CI de cada servicio publica `ghcr.io/extractor-de-texto-pdf-grupo-06/<repo>` con el
 hash del commit y `latest` al fusionar en `main`. `docker-compose.yml` usa solo imágenes.
 
-- [ ] `docker compose up -d --wait` sin clonar ningún repositorio levanta el sistema.
+- [x] web — workflow presente en `main`; CI de publicación exitosa.
+- [x] documents — workflow presente en `main`; CI de publicación exitosa.
+- [x] extractor — PR de release
+      [#8](https://github.com/Extractor-de-texto-PDF-Grupo-06/pdf-extractext-extractor/pull/8)
+      fusionado en `main`; CI de publicación exitosa.
+- [x] config — workflow presente en `main`; CI de publicación exitosa.
+
+- [x] `docker compose up -d --wait` sin clonar ningún repositorio levanta el sistema.
+
+**Revisión 22/11:** el primer pull sin autenticación respondió `unauthorized` porque los
+paquetes eran privados. Se hicieron públicos y, con las imágenes locales borradas,
+`docker logout ghcr.io`, `docker compose pull` y `docker compose up -d --wait` levantaron
+el sistema sano sin login y sin clonar los servicios.
 
 **Alternativa si no alcanza el tiempo:** construir desde etiquetas de Git (`v1.0.0`).
 **Dependencias:** T8.
@@ -206,7 +224,8 @@ hash del commit y `latest` al fusionar en `main`. `docker-compose.yml` usa solo 
 #### T13 · orchestration · Pruebas de carga a través de Traefik · M
 
 - [ ] k6 y Vegeta del TP superan 25,35 req/s y 16,65 req/s efectivos.
-- [ ] Informe con los resultados y la comparación contra nginx.
+- [ ] Informe con los resultados y la comparación contra la referencia del profesor y contra
+      nginx (con la salvedad de que las corridas de nginx fueron en otro entorno).
 
 **Dependencias:** T8.
 
