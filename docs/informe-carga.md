@@ -39,14 +39,30 @@ extractor de 1 CPU y 1 GB cada una. Los generadores corren en la red del compose
 
 Los 11 contenedores siguieron `healthy` durante y después de las pruebas.
 
+## Corridas del 23/11
+
+Se repitió la prueba con el cliente de League of Legends cerrado (resultados en
+`load/results/20261123-014948/`, `-015145/` y `-015343/`). Antes de cerrarlo, dos corridas
+dieron 4,58 y 20,97 req/s en k6 (`-014402/` y `-014630/`): el uso del equipo afecta mucho.
+
+| Corrida | k6 req/s | k6 mediana / p95 | Vegeta req/s efectivos | Vegeta éxito | Vegeta p50 / p95 |
+|---|---|---|---|---|---|
+| 1 | 38,43 | 1,93 s / 3,57 s | 28,56 | 99,53 % | 4,85 s / 13,60 s |
+| 2 | 38,73 | 2,19 s / 3,13 s | 27,64 | 98,60 % | 5,26 s / 18,47 s |
+| 3 | 40,85 | 1,76 s / 3,79 s | 29,43 | 99,73 % | 4,65 s / 12,60 s |
+
+Con el equipo sin otras aplicaciones pesadas, el sistema supera las dos referencias del
+profesor en las tres corridas, sin fallos en k6.
+
 ## Lectura
 
-- El extractor detrás de Traefik supera las dos referencias: 14 % más en k6 y 52 % más en
-  Vegeta.
+- El extractor detrás de Traefik supera las dos referencias del profesor en las corridas con
+  el equipo libre (38–41 req/s en k6 y 28–29 en Vegeta); en la del 22/11, 14 % y 52 % más.
 - Los `503` de Vegeta son el comportamiento esperado de la admisión del extractor cuando
-  se satura (contrato: `503` saturado). Vegeta ataca a 50 req/s con PDFs de hasta 8,9 MB,
-  por encima de lo que las 5 réplicas pueden procesar; no es una falla de Traefik.
+  se satura (contrato: `503` saturado), y con el equipo libre bajan a menos del 2 %.
 - Con k6 (concurrencia acotada a 100 VUs) no hubo ningún error.
+- Los resultados dependen de la carga del equipo: con otras aplicaciones abiertas, una
+  corrida dio solo 4,58 req/s en k6.
 
 ## Comparación con nginx
 
@@ -58,18 +74,22 @@ con el mismo código del extractor que corre hoy en `develop` y los mismos 4 PDF
 | Balanceador | k6 req/s | k6 mediana / p95 | Vegeta req/s efectivos | Vegeta éxito |
 |---|---|---|---|---|
 | nginx (`least_conn`), 3 corridas | 35,91 – 37,54 | 2,37 – 2,42 s / 2,88 – 3,09 s | 33,15 – 36,72 | 100 % |
-| Traefik (esta corrida) | 28,99 | 2,66 s / 4,6 s | 25,25 | 92,40 % |
+| Traefik, 3 corridas del 23/11 | 38,43 – 40,85 | 1,76 – 2,19 s / 3,13 – 3,79 s | 27,64 – 29,43 | 98,6 – 99,7 % |
 
-Con estos números nginx rinde más que Traefik, y no hay que presentarlo al revés. Antes de
-atribuirlo a Traefik hay que tener en cuenta que **los entornos no son iguales**:
+Los dos quedan en el mismo orden de magnitud: Traefik rinde algo más en k6 y nginx algo más
+en Vegeta, con éxito cercano al 100 % en ambos. Ninguno es claramente mejor. La comparación
+**no es del todo equivalente**:
 
 - nginx se midió con puertos publicados en el host y generadores con límites de CPU y RAM
-  (k6 2 CPU / 3 GiB, Vegeta 1 CPU / 1 GiB), en Docker Desktop con 12 CPU lógicas.
+  (k6 2 CPU / 3 GiB, Vegeta 1 CPU / 1 GiB), en Docker Desktop con 12 CPU lógicas y 7,71 GiB,
+  que coincide con la VM de esta máquina.
 - Traefik se midió con los generadores dentro de la red del compose y sin límites, en un
   stack de 11 contenedores (con documents, MongoDB, config y Consul encendidos).
+- La variación entre corridas, sobre todo con otras aplicaciones abiertas, es del mismo
+  orden que la diferencia entre balanceadores.
 
-Por eso la diferencia no se puede atribuir solo al balanceador. La comparación justa es
-repetir las dos configuraciones en el mismo equipo y con el mismo método.
+Por eso no se puede atribuir la diferencia solo al balanceador. La comparación justa es
+repetir las dos configuraciones con el mismo método.
 
 Las cifras de 15,70 req/s (k6) y 4,36 req/s (Vegeta) del informe del extractor son de una
 versión anterior del código, sin la optimización de memoria compartida: no sirven para
