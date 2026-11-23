@@ -197,17 +197,17 @@ hash del commit y `latest` al fusionar en `main`. `docker-compose.yml` usa solo 
 
 - [x] web — workflow presente en `main`; CI de publicación exitosa.
 - [x] documents — workflow presente en `main`; CI de publicación exitosa.
-- [ ] extractor — workflow está en `develop`; PR de release
+- [x] extractor — PR de release
       [#8](https://github.com/Extractor-de-texto-PDF-Grupo-06/pdf-extractext-extractor/pull/8)
-      hacia `main` está abierto y requiere revisión. El job `test` pasa; `publish` está
-      omitido hasta fusionar en `main`.
+      fusionado en `main`; CI de publicación exitosa.
 - [x] config — workflow presente en `main`; CI de publicación exitosa.
 
-- [ ] `docker compose up -d --wait` sin clonar ningún repositorio levanta el sistema.
+- [x] `docker compose up -d --wait` sin clonar ningún repositorio levanta el sistema.
 
-**Revisión 22/11:** el pull local sin autenticación respondió `unauthorized`. El README
-explica el login con `read:packages`; no se comprobó aún el arranque limpio autenticado.
-La fusión del PR #8 y credenciales de GHCR son los bloqueos pendientes.
+**Revisión 22/11:** el primer pull sin autenticación respondió `unauthorized` porque los
+paquetes eran privados. Se hicieron públicos y, con las imágenes locales borradas,
+`docker logout ghcr.io`, `docker compose pull` y `docker compose up -d --wait` levantaron
+el sistema sano sin login y sin clonar los servicios.
 
 **Alternativa si no alcanza el tiempo:** construir desde etiquetas de Git (`v1.0.0`).
 **Dependencias:** T8.
