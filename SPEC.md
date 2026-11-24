@@ -148,7 +148,7 @@ extractor y documents siguen configurándose solo por variables de entorno.
 - MongoDB 9.0.4 con usuario y contraseña
 - Consul 2.1 como servidor (`agent -server -bootstrap-expect=1 -client=0.0.0.0`), con
   volumen. Un agente sin `-server` no tiene líder y el KV no responde
-- Traefik v3.6 con el proveedor Docker (`exposedbydefault=false`)
+- Traefik v3.6 con dos proveedores, Docker y Consul Catalog (los dos con `exposedbydefault=false`; ADR 0008)
 - Docker Compose v2; GitHub Actions; imágenes en `ghcr.io/extractor-de-texto-pdf-grupo-06/<repo>`
 
 Las versiones exactas de las librerías las fija el `uv.lock` de cada repositorio.
@@ -319,6 +319,8 @@ el código.
       propios, con `/tmp` en memoria.
 - [ ] MongoDB con usuario y contraseña desde `.env`; solo documents recibe las credenciales.
 - [ ] Solo Traefik publica puertos en la máquina.
+- [ ] El panel de Traefik muestra los providers Docker y Consul Catalog, y la ruta de config
+      sale del catálogo de Consul.
 - [ ] Sin vulnerabilidades conocidas de gravedad alta o crítica en las dependencias
       (`pip-audit`) ni en las imágenes (Trivy).
 
@@ -332,7 +334,8 @@ el código.
 - Resúmenes con IA y exportación a `.docx`: la consigna no los pide.
 - Message broker y comunicación asíncrona: el flujo no lo necesita y el contrato del TP es
   síncrono.
-- Descubrimiento de servicios con Consul: Traefik los descubre por labels de Docker.
+- Descubrimiento de todos los servicios con Consul: solo config se registra en el
+  catálogo (ADR 0008); los demás siguen con labels de Docker.
 - Usuarios y autenticación (OAuth2): la consigna no pide usuarios.
 - Logs centralizados y monitoreo más allá del panel de Traefik y los health checks.
 - Renombrar las carpetas de documents y extractor al esquema de capas de los servicios nuevos.

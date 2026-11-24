@@ -25,9 +25,14 @@ services:
   traefik:
     image: traefik:v3.6
     command:
-      # Descubre los servicios por los labels; solo los que dicen traefik.enable=true.
+      # Dos fuentes de rutas (ADR 0008), las dos solo con traefik.enable=true:
+      # los labels de Docker y el catálogo de Consul, donde config se registra solo.
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
+      - --providers.consulcatalog=true
+      - --providers.consulcatalog.endpoint.address=consul:8500
+      - --providers.consulcatalog.exposedbydefault=false
+      - --providers.consulcatalog.refreshinterval=5s
       # Público: lo que usan el navegador y los tests de extremo a extremo.
       - --entrypoints.web.address=:80
       # Interno: web llega por acá al extractor y Traefik balancea las réplicas (ADR 0005).
@@ -160,17 +165,22 @@ services:
     <<: *endurecido
     image: ghcr.io/extractor-de-texto-pdf-grupo-06/pdf-extractext-config:${IMAGE_TAG:-latest}
     environment:
-      # Único servicio que habla con Consul (ADR 0003).
+      # Único servicio que usa el KV de Consul (ADR 0003).
       CONSUL_URL: http://consul:8500
       CONSUL_KV_ROOT: pdf-extractext
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.config.rule=PathPrefix(`/config`)
-      - traefik.http.routers.config.entrypoints=web
-      - traefik.http.routers.config.middlewares=config-sin-prefijo,public-rate-limit,public-retry
-      - traefik.http.routers.config.service=config
-      - traefik.http.middlewares.config-sin-prefijo.stripprefix.prefixes=/config
-      - traefik.http.services.config.loadbalancer.server.port=8000
+      # Se registra en el catálogo de Consul al arrancar y se da de baja al apagarse.
+      # Traefik arma su ruta con estas etiquetas (ADR 0008), así que no lleva labels:
+      # dos fuentes para la misma ruta crearían dos routers. Los middlewares públicos
+      # viven en el provider Docker, por eso se nombran con @docker.
+      SERVICE_REGISTRATION: "true"
+      SERVICE_TAGS: >-
+        [
+        "traefik.enable=true",
+        "traefik.http.routers.config.rule=PathPrefix(`/config`)",
+        "traefik.http.routers.config.entrypoints=web",
+        "traefik.http.routers.config.middlewares=config-sin-prefijo,public-rate-limit@docker,public-retry@docker",
+        "traefik.http.middlewares.config-sin-prefijo.stripprefix.prefixes=/config"
+        ]
     depends_on:
       consul:
         condition: service_healthy

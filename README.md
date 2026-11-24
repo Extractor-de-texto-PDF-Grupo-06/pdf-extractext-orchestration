@@ -100,7 +100,10 @@ circuit breaker) y le pide a documents que guarde el resultado. El detalle está
     toca, así un cambio hecho en caliente sobrevive a un reinicio.
 - **Contenedores propios endurecidos**: `read_only`, `cap_drop: [ALL]`,
   `no-new-privileges`, usuario de UID 10001 (lo pone cada imagen) y `/tmp` en memoria.
-- **Solo documents recibe las credenciales de MongoDB**; solo config habla con Consul.
+- **Solo documents recibe las credenciales de MongoDB**; solo config usa el KV de Consul.
+- **Traefik toma las rutas de dos providers:** los labels de Docker y el catálogo de
+  Consul, donde config se registra solo al arrancar (ADR 0008). En el panel de Traefik
+  aparecen los dos.
 
 ## Variables
 
