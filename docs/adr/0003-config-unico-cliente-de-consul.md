@@ -15,3 +15,6 @@ usa sus variables de entorno si no responde.
 
 Solo la configuración de web pasa por config. extractor y documents siguen solo con
 variables de entorno: no tienen valores que haga falta cambiar en caliente.
+
+*Actualizado en el ADR 0008:* config también se registra en el catálogo de Consul, y
+Traefik lee ese catálogo para enrutar `/config`. El KV lo sigue usando solo config.

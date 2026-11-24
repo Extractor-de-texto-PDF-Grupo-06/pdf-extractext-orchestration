@@ -12,7 +12,8 @@ ningún servicio sabe que Traefik existe.
   arrancar. Lo pidió el profesor.
 - **Traefik leyendo el catálogo de Consul.** Descartada para esta versión: obliga a que
   cada servicio se registre en Consul y suma una pieza que puede fallar. Se puede agregar
-  después cambiando solo el proveedor de Traefik.
+  después cambiando solo el proveedor de Traefik. *Revisado en el ADR 0008: Traefik suma
+  el catálogo de Consul, donde se registra config.*
 
 ## Consecuencias
 
